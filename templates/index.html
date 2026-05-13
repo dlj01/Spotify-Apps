@@ -7,7 +7,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Spotify Updater</title>
+  <title>Donny's Spotify Updater</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -67,23 +67,41 @@
     }
     .success { color: #1db954; }
     .error   { color: #e24b4a; }
+
+    /* playlist checkboxes */
     .playlists { margin-top: 20px; text-align: left; }
     .playlists li {
-      font-size: 13px;
-      color: #666;
-      padding: 5px 0;
-      border-bottom: 1px solid #222;
       list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid #222;
+      cursor: pointer;
+      color: #555;
+      font-size: 13px;
+      transition: color .15s;
     }
-    .playlists li span { color: #aaa; }
+    /* brighten the row when its checkbox is checked */
+    .playlists li:has(input:checked) { color: #aaa; }
+    .playlists li input[type="checkbox"] {
+      accent-color: #1db954;
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .playlists li .detail { margin-left: auto; color: #444; font-size: 12px; }
+    .playlists li:has(input:checked) .detail { color: #555; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Spotify Updater</h1>
-    <p class="sub">Tap to refresh your playlists</p>
+    <p class="sub">Select playlists to refresh</p>
 
     {% if not authed %}
+      <!-- not logged in: show connect button, checkboxes disabled -->
       <a href="/login" class="btn btn-green" style="text-decoration:none;display:block;padding:14px;">
         Connect Spotify
       </a>
@@ -99,10 +117,26 @@
       {% endif %}
     </div>
 
+    <!-- checkboxes — all checked by default, disabled until logged in -->
     <ul class="playlists">
-      <li>rotation <span>– last month, 50 tracks</span></li>
-      <li>mid rotation <span>– last 6 months, 100 tracks</span></li>
-      <li>lost in rotation <span>– last year, 100 tracks</span></li>
+      <li onclick="toggle('rotation')">
+        <input type="checkbox" id="rotation" value="rotation"
+          {% if authed %}checked{% else %}disabled{% endif %}>
+        rotation
+        <span class="detail">last month · 50 tracks</span>
+      </li>
+      <li onclick="toggle('mid-rotation')">
+        <input type="checkbox" id="mid-rotation" value="mid rotation"
+          {% if authed %}checked{% else %}disabled{% endif %}>
+        mid rotation
+        <span class="detail">last 6 months · 100 tracks</span>
+      </li>
+      <li onclick="toggle('lost-in-rotation')">
+        <input type="checkbox" id="lost-in-rotation" value="lost in rotation"
+          {% if authed %}checked{% else %}disabled{% endif %}>
+        lost in rotation
+        <span class="detail">last year · 100 tracks</span>
+      </li>
     </ul>
 
     {% if authed %}
@@ -111,34 +145,55 @@
   </div>
 
   <script>
+    /* clicking anywhere on the <li> row toggles its checkbox */
+    function toggle(id) {
+      const cb = document.getElementById(id);
+      if (!cb.disabled) cb.checked = !cb.checked;
+    }
+
     function triggerUpdate() {
-      const btn = document.getElementById("update-btn");
+      /* collect the value of every checked checkbox */
+      const selected = Array.from(document.querySelectorAll('.playlists input:checked'))
+                            .map(cb => cb.value);
+
+      if (selected.length === 0) {
+        document.getElementById("status").innerHTML =
+          '<span class="error">Select at least one playlist</span>';
+        return;
+      }
+
+      const btn    = document.getElementById("update-btn");
       const status = document.getElementById("status");
       btn.className = "btn btn-gray";
-      btn.disabled = true;
-      status.innerHTML = '<span class="dot"></span>Updating playlists…';
+      btn.disabled  = true;
+      status.innerHTML = '<span class="dot"></span>Updating…';
 
-      fetch("/update", { method: "POST" })
-        .then(r => r.json())
-        .then(() => poll());
+      /* send the selected playlist names as JSON to /update */
+      fetch("/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlists: selected })
+      })
+      .then(r => r.json())
+      .then(() => poll());
     }
 
     function poll() {
       fetch("/status")
         .then(r => r.json())
         .then(d => {
-          const btn = document.getElementById("update-btn");
+          const btn    = document.getElementById("update-btn");
           const status = document.getElementById("status");
           if (d.running) {
             setTimeout(poll, 2000);
           } else if (d.result === "ok") {
-            status.innerHTML = '<span class="success">✓ All playlists updated</span>';
+            status.innerHTML = '<span class="success">✓ Playlists updated</span>';
             btn.className = "btn btn-green";
-            btn.disabled = false;
+            btn.disabled  = false;
           } else if (d.result) {
             status.innerHTML = '<span class="error">Error: ' + d.result + '</span>';
             btn.className = "btn btn-green";
-            btn.disabled = false;
+            btn.disabled  = false;
           }
         });
     }

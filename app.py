@@ -105,12 +105,23 @@ def update():
     if job_status["running"]:
         return jsonify({"ok": False, "msg": "Already running"})
 
+    # Read which playlists the user selected from the request body
+    body = request.get_json(silent=True) or {}
+    selected = body.get("playlists", [])
+
+    # Filter the full list down to only the selected ones
+    all_lists = _build_top_lists()
+    chosen_lists = [p for p in all_lists if p["name"] in selected]
+
+    if not chosen_lists:
+        return jsonify({"ok": False, "msg": "No playlists selected"})
+
     job_status["running"] = True
-    job_status["result"]  = None
+    job_status["result"] = None
 
     def run():
         try:
-            top = top_tracks.TopTracks(_build_top_lists())
+            top = top_tracks.TopTracks(chosen_lists)
             top.update()
             job_status["result"] = "ok"
         except Exception as e:
