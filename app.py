@@ -93,7 +93,7 @@ def callback():
 
 @app.route("/logout")
 def logout():
-    tokens = sp_module._load_tokens("d")
+    tokens = sp_module._load_tokens()
     tokens.pop("top_tracks", None)
     sp_module._save_tokens(tokens)
     return redirect("/")
