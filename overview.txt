@@ -1,28 +1,14 @@
 Overview
 Map of files
 
-symbols: └ ┐ ┌ ┘
-
-┌-------------┐
-|  update.py  |
-└-------------┘
-       |
-       |     ┌-----------------┐
-       |---> |  top_tracks.py  | -------┐
-       |     └-----------------┘        |
-       |                                |
-       |     ┌--------------------┐     |
-       └---> |  recent_tracks.py  | ----|
-             └--------------------┘     |
-                                        |
-                                        |     ┌--------------┐
-                                        └---> |  spotify.py  |
-                                              └--------------┘
+symbols: └ ┐ ┌ ┘ – |
 
 ______________________________________________________________________
 
+LOCAL + WEB APP (http_server_v5/)
+
               ┌-------------┐
-              |  update.py  |
+              |  update.py  |  <-- local exe entry point
               └-------------┘
                  /       \
                 /         \
@@ -36,3 +22,84 @@ ______________________________________________________________________
              ┌--------------┐
              |  spotify.py  |
              └--------------┘
+
+Run via: http_server_v5/dist/update.exe
+Or:      spotify_update.bat
+
+______________________________________________________________________
+
+WEB APP (http_server_v5/)
+
+  Your phone / browser
+         |
+         | HTTP (donnys-spotifyupdater.com)
+         v
+  ┌--------------┐
+  |    app.py    |  <-- Flask web server (entry point)
+  |  (Railway)   |
+  └--------------┘
+       |      \
+       |       \
+       v        v
+┌-----------┐  ┌--------------┐
+|top_tracks |  | recent_tracks|  (future)
+|   .py     |  |     .py      |
+└-----------┘  └--------------┘
+       \        /
+        \      /
+         v    v
+      ┌--------------┐
+      |  spotify.py  |  <-- shared auth + token logic
+      └--------------┘
+            |
+            | refresh token (silent, no browser)
+            v
+      ┌--------------┐
+      | tokens.json  |  <-- saved on Railway server
+      └--------------┘
+            |
+            | Spotify Web API
+            v
+      ┌--------------┐
+      | Spotify API  |
+      └--------------┘
+
+______________________________________________________________________
+
+DEPLOYMENT
+
+  GitHub (Spotify-Apps repo)
+  └── http_server_v5/     <- all files (local exe + flask web app)
+        ├── app.py              <- Flask entry point (web)
+        ├── update.py           <- exe entry point (local)
+        ├── spotify.py          <- shared auth + token logic
+        ├── top_tracks.py       <- top tracks playlist logic
+        ├── recent_tracks.py    <- rewind playlist logic
+        ├── requirements.txt
+        ├── Procfile
+        └── .env.example
+
+  GitHub -> Railway (auto-deploys on every push to main)
+
+  Domain: donnys-spotifyupdater.com
+    CNAME -> web-production-d606f.up.railway.app
+    TXT   -> Railway domain verification record
+
+______________________________________________________________________
+
+ENVIRONMENT VARIABLES (set in Railway dashboard)
+
+  SPOTIFY_CLIENT_ID      -> Spotify app client ID
+  SPOTIFY_CLIENT_SECRET  -> Spotify app client secret
+  SPOTIFY_REDIRECT_URI   -> https://donnys-spotifyupdater.com/callback
+  FLASK_SECRET_KEY       -> random secret string
+
+______________________________________________________________________
+
+AUTH FLOW
+
+  First run:
+    browser -> /login -> Spotify OAuth -> /callback -> tokens.json saved
+
+  Every run after:
+    app.py reads tokens.json -> refresh token -> new access token (silent)
