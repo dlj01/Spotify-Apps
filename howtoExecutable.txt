@@ -1,0 +1,3 @@
+from Powershell
+> cd PycharmProjects/spotify/http_server_v3
+> pyinstaller --onefile update.py
